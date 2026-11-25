@@ -1,436 +1,100 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>숫자 추첨기</title>
-    <script>
-        // 화면이 그려지기 전에 테마를 적용해 깜빡임을 방지합니다.
-        (function () {
-            let saved = null;
-            try { saved = localStorage.getItem("theme"); } catch (e) {}
-            const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-            document.documentElement.dataset.theme = saved || (prefersDark ? "dark" : "light");
-        })();
-    </script>
-    <style>
-        :root {
-            --bg-start: #e0eaff;
-            --bg-end: #f5f7ff;
-            --text: #202b45;
-            --card: #fff;
-            --card-shadow: rgba(0, 0, 0, 0.1);
-            --primary: #2457c5;
-            --primary-hover: #173b8c;
-            --muted: #667085;
-            --label: #475467;
-            --faint: #98a2b3;
-            --input-bg: #fff;
-            --input-border: #d0d5dd;
-            --panel: #f7f9fc;
-            --circle-fill: #e0eaff;
-            --focus: #84adff;
-            --error: #d92d20;
-            --reset: #667085;
-            --reset-hover: #475467;
-            --ball-shadow: rgba(36, 87, 197, 0.2);
-            color-scheme: light;
-        }
-
-        :root[data-theme="dark"] {
-            --bg-start: #0f1629;
-            --bg-end: #1a2238;
-            --text: #e6e9f2;
-            --card: #1e2740;
-            --card-shadow: rgba(0, 0, 0, 0.45);
-            --primary: #5b8cff;
-            --primary-hover: #3f72f0;
-            --muted: #a3acc2;
-            --label: #c3c9d8;
-            --faint: #7d879e;
-            --input-bg: #141b2e;
-            --input-border: #3a4562;
-            --panel: #162036;
-            --circle-fill: #24345c;
-            --focus: #8fb0ff;
-            --error: #ff7a6e;
-            --reset: #4f5a75;
-            --reset-hover: #646f8c;
-            --ball-shadow: rgba(0, 0, 0, 0.35);
-            color-scheme: dark;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            min-height: 100vh;
-            margin: 0;
-            padding: 40px 16px;
-            font-family: Arial, sans-serif;
-            color: var(--text);
-            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
-            transition: color 200ms ease, background 200ms ease;
-        }
-
-        .container {
-            position: relative;
-            width: 100%;
-            max-width: 680px;
-            margin: 0 auto;
-            padding: 36px 28px;
-            border-radius: 20px;
-            background: var(--card);
-            box-shadow: 0 8px 30px var(--card-shadow);
-            text-align: center;
-            transition: background 200ms ease;
-        }
-
-        .theme-toggle {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 12px;
-            border: 1px solid var(--input-border);
-            border-radius: 999px;
-            color: var(--label);
-            background: var(--panel);
-            font-size: 14px;
-        }
-
-        .theme-toggle:hover {
-            background: var(--input-border);
-        }
-
-        .circle {
-            display: block;
-            margin: 0 auto 16px;
-        }
-
-        .circle circle {
-            fill: var(--circle-fill);
-            stroke: var(--primary);
-        }
-
-        h1 {
-            margin: 0 0 12px;
-            color: var(--primary);
-        }
-
-        .description {
-            margin: 0 0 28px;
-            color: var(--muted);
-        }
-
-        .settings {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-            margin-bottom: 20px;
-            text-align: left;
-        }
-
-        label {
-            display: block;
-            color: var(--label);
-            font-size: 14px;
-            font-weight: bold;
-        }
-
-        input[type="number"] {
-            width: 100%;
-            margin-top: 7px;
-            padding: 11px 12px;
-            border: 1px solid var(--input-border);
-            border-radius: 8px;
-            color: var(--text);
-            background: var(--input-bg);
-            font: inherit;
-        }
-
-        .unique-option {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 8px;
-            color: var(--label);
-            font-size: 14px;
-        }
-
-        .unique-option input {
-            width: 16px;
-            height: 16px;
-            accent-color: var(--primary);
-        }
-
-        .results {
-            display: flex;
-            min-height: 130px;
-            align-content: center;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 12px;
-            padding: 22px 14px;
-            border-radius: 14px;
-            background: var(--panel);
-        }
-
-        .placeholder {
-            color: var(--faint);
-        }
-
-        .ball {
-            display: flex;
-            width: 58px;
-            height: 58px;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            color: white;
-            background: var(--primary);
-            font-size: 20px;
-            font-weight: bold;
-            box-shadow: 0 3px 8px var(--ball-shadow);
-            animation: pop-in 220ms ease-out both;
-        }
-
-        @keyframes pop-in {
-            from {
-                opacity: 0;
-                transform: scale(0.7);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        .actions {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .actions button {
-            padding: 13px 24px;
-            border: 0;
-            border-radius: 9px;
-            color: white;
-            background: var(--primary);
-            font-size: 16px;
-            font-weight: bold;
-        }
-
-        button {
-            cursor: pointer;
-        }
-
-        .actions button:hover {
-            background: var(--primary-hover);
-        }
-
-        button:focus-visible,
-        input:focus-visible {
-            outline: 3px solid var(--focus);
-            outline-offset: 2px;
-        }
-
-        .actions .reset {
-            background: var(--reset);
-        }
-
-        .actions .reset:hover {
-            background: var(--reset-hover);
-        }
-
-        .message {
-            min-height: 20px;
-            margin: 14px 0 0;
-            color: var(--error);
-            font-size: 14px;
-        }
-
-        .count {
-            margin: 4px 0 0;
-            color: var(--faint);
-            font-size: 14px;
-        }
-
-        @media (max-width: 480px) {
-            body {
-                padding: 24px 12px;
-            }
-
-            .container {
-                padding: 60px 18px 28px;
-            }
-
-            .settings {
-                grid-template-columns: 1fr;
-                gap: 12px;
-            }
-
-            .ball {
-                width: 48px;
-                height: 48px;
-                font-size: 18px;
-            }
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>제휴 문의</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 32px 16px;
+      display: grid;
+      place-items: center;
+      font-family: Arial, sans-serif;
+      color: #1f2937;
+      background: #f3f6fb;
+    }
+    main {
+      width: min(100%, 520px);
+      padding: 32px;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 8px 28px rgb(31 41 55 / 10%);
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .description { margin: 0 0 24px; color: #667085; line-height: 1.6; }
+    label { display: block; margin: 16px 0 7px; font-weight: 600; }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d0d5dd;
+      border-radius: 8px;
+      font: inherit;
+    }
+    input:focus, textarea:focus { outline: 2px solid #93b4ff; border-color: #2563eb; }
+    textarea { min-height: 150px; resize: vertical; }
+    button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 13px 20px;
+      border: 0;
+      border-radius: 8px;
+      background: #2563eb;
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #1d4ed8; }
+  </style>
 </head>
 <body>
-    <main class="container">
-        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="테마 전환">
-            <span id="theme-icon" aria-hidden="true">🌙</span>
-            <span id="theme-text">다크 모드</span>
-        </button>
+  <main>
+    <h1>제휴 문의</h1>
+    <p class="description">제휴를 제안해 주세요. 내용을 확인한 뒤 입력하신 이메일로 연락드리겠습니다.</p>
+    <form action="https://formspree.io/f/xgakrjvo" method="POST">
+      <input type="hidden" name="_subject" value="새 제휴 문의">
 
-        <svg class="circle" width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
-            <circle cx="60" cy="60" r="50" stroke-width="6" />
-        </svg>
-        <h1>🎲 숫자 추첨기</h1>
-        <p class="description">원하는 범위와 개수를 정하고 행운의 숫자를 뽑아보세요!</p>
+      <label for="name">이름</label>
+      <input id="name" name="name" type="text" autocomplete="name" required>
 
-        <form id="draw-form">
-            <div class="settings">
-                <label for="min-number">
-                    시작 숫자
-                    <input id="min-number" type="number" value="1" step="1" required>
-                </label>
-                <label for="max-number">
-                    마지막 숫자
-                    <input id="max-number" type="number" value="45" step="1" required>
-                </label>
-                <label for="draw-count">
-                    추첨 개수
-                    <input id="draw-count" type="number" value="6" min="1" step="1" required>
-                </label>
-            </div>
+      <label for="email">이메일</label>
+      <input id="email" name="email" type="email" autocomplete="email" required>
 
-            <label class="unique-option" for="unique-numbers">
-                <input id="unique-numbers" type="checkbox" checked>
-                중복 없이 추첨
-            </label>
+      <label for="company">회사명</label>
+      <input id="company" name="company" type="text" autocomplete="organization">
 
-            <div class="results" id="results" aria-live="polite">
-                <span class="placeholder">추첨 버튼을 눌러주세요</span>
-            </div>
+      <label for="message">문의 내용</label>
+      <textarea id="message" name="message" required></textarea>
 
-            <div class="actions">
-                <button type="submit">숫자 추첨하기</button>
-                <button class="reset" id="reset-button" type="button">초기화</button>
-            </div>
-        </form>
+      <button type="submit">문의 보내기</button>
+    </form>
+  </main>
+  <section aria-label="댓글" style="width: min(100%, 720px); margin: 32px auto 0; padding: 24px; border-radius: 16px; background: #fff; box-shadow: 0 8px 28px rgb(31 41 55 / 10%);">
+    <h2 style="margin: 0 0 20px; font-size: 22px;">댓글</h2>
+    <div id="disqus_thread"></div>
+  </section>
+  <script>
+    if (window.location.protocol === "file:") {
+      document.getElementById("disqus_thread").textContent =
+        "Disqus 댓글은 페이지를 웹에 배포한 뒤 확인할 수 있습니다.";
+    } else {
+      var disqus_config = function () {
+        this.page.url = window.location.origin + window.location.pathname;
+        this.page.identifier = window.location.pathname;
+      };
 
-        <p class="message" id="message" role="alert"></p>
-        <p class="count" id="count">아직 추첨하지 않았습니다.</p>
-    </main>
-
-    <script>
-        // 다크 / 화이트 모드 전환
-        const themeToggle = document.getElementById("theme-toggle");
-        const themeIcon = document.getElementById("theme-icon");
-        const themeText = document.getElementById("theme-text");
-
-        function applyTheme(theme) {
-            document.documentElement.dataset.theme = theme;
-            const isDark = theme === "dark";
-            themeIcon.textContent = isDark ? "☀️" : "🌙";
-            themeText.textContent = isDark ? "화이트 모드" : "다크 모드";
-            themeToggle.setAttribute("aria-pressed", String(isDark));
-        }
-
-        applyTheme(document.documentElement.dataset.theme || "light");
-
-        themeToggle.addEventListener("click", function () {
-            const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-            applyTheme(next);
-            try { localStorage.setItem("theme", next); } catch (e) {}
-        });
-
-        let drawCount = 0;
-
-        const form = document.getElementById("draw-form");
-        const results = document.getElementById("results");
-        const message = document.getElementById("message");
-        const countLabel = document.getElementById("count");
-
-        form.addEventListener("submit", function (event) {
-            event.preventDefault();
-
-            const min = Number(document.getElementById("min-number").value);
-            const max = Number(document.getElementById("max-number").value);
-            const quantity = Number(document.getElementById("draw-count").value);
-            const unique = document.getElementById("unique-numbers").checked;
-
-            if (!Number.isSafeInteger(min) || !Number.isSafeInteger(max) ||
-                !Number.isSafeInteger(quantity) || min > max || quantity < 1) {
-                showError("시작 숫자와 마지막 숫자, 추첨 개수를 올바른 정수로 입력해주세요.");
-                return;
-            }
-
-            const rangeSize = max - min + 1;
-            if (!Number.isSafeInteger(rangeSize) || rangeSize < 1) {
-                showError("숫자 범위가 너무 큽니다.");
-                return;
-            }
-
-            if (unique && quantity > rangeSize) {
-                showError("중복 없이 추첨하려면 추첨 개수가 숫자 범위보다 클 수 없습니다.");
-                return;
-            }
-
-            const drawn = [];
-            if (unique) {
-                const swaps = new Map();
-
-                for (let i = 0; i < quantity; i++) {
-                    const randomIndex = i + Math.floor(Math.random() * (rangeSize - i));
-                    const selected = swaps.has(randomIndex) ? swaps.get(randomIndex) : randomIndex;
-                    const replacement = swaps.has(i) ? swaps.get(i) : i;
-                    swaps.set(randomIndex, replacement);
-                    drawn.push(min + selected);
-                }
-                drawn.sort(function (a, b) { return a - b; });
-            } else {
-                for (let i = 0; i < quantity; i++) {
-                    drawn.push(Math.floor(Math.random() * rangeSize) + min);
-                }
-            }
-
-            results.replaceChildren();
-            drawn.forEach(function (number, index) {
-                const ball = document.createElement("span");
-                ball.className = "ball";
-                ball.style.animationDelay = (index * 45) + "ms";
-                ball.textContent = number;
-                results.appendChild(ball);
-            });
-
-            message.textContent = "";
-            drawCount++;
-            countLabel.textContent = "총 " + drawCount + "회 추첨했습니다.";
-        });
-
-        document.getElementById("reset-button").addEventListener("click", function () {
-            form.reset();
-            results.innerHTML = '<span class="placeholder">추첨 버튼을 눌러주세요</span>';
-            message.textContent = "";
-            drawCount = 0;
-            countLabel.textContent = "아직 추첨하지 않았습니다.";
-        });
-
-        function showError(text) {
-            message.textContent = text;
-        }
-    </script>
+      (function () {
+        var d = document;
+        var s = d.createElement("script");
+        s.src = "https://nomer.disqus.com/embed.js";
+        s.setAttribute("data-timestamp", String(Date.now()));
+        (d.head || d.body).appendChild(s);
+      })();
+    }
+  </script>
+  <noscript>댓글을 보려면 JavaScript를 활성화해 주세요. <a href="https://disqus.com/?ref_noscript">Disqus</a>에서 제공하는 댓글입니다.</noscript>
 </body>
 </html>
