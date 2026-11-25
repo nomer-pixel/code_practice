@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>의사결정나무와 랜덤포레스트 - 데이터 첫걸음</title>
+  <meta name="description" content="의사결정나무가 질문을 고르는 기준(지니 불순도)을 직접 계산해 보고, 랜덤포레스트가 배깅과 무작위 특성 선택으로 과적합을 줄이는 원리를 설명합니다.">
+  <link rel="canonical" href="https://nomer-pixel.github.io/code_practice/posts/decision-tree-rf.html">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2924409115830363"
+     crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <a class="skip" href="#content">본문 바로가기</a>
+  <header class="site-header">
+    <div class="inner">
+      <a class="logo" href="../">데이터<span>첫걸음</span></a>
+      <nav class="site-nav" aria-label="주 메뉴">
+        <ul>
+          <li><a href="../">홈</a></li>
+          <li><a href="../#guides">학습 가이드</a></li>
+          <li><a href="../about.html">소개</a></li>
+          <li><a href="../contact.html">문의</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="content">
+    <article>
+      <div class="breadcrumb"><a href="../">홈</a> › 분류·회귀</div>
+      <h1>의사결정나무와 랜덤포레스트</h1>
+      <p class="meta">분류·회귀 · 읽는 시간 약 9분</p>
+
+      <p class="lead">의사결정나무는 스무고개와 같습니다. "주행거리가 10만 km 이상인가?", "연식이 2018년 이후인가?" 같은 질문을 차례로 던져 답을 좁혀 갑니다. 사람이 판단하는 방식과 닮아 이해하기 쉽고, 여러 그루를 모은 랜덤포레스트는 지금도 표 형태 데이터에서 강력한 기본 모델로 쓰입니다.</p>
+
+      <nav class="toc" aria-label="목차">
+        <strong>목차</strong>
+        <ol>
+          <li><a href="#tree">나무의 구조</a></li>
+          <li><a href="#gini">좋은 질문의 기준: 지니 불순도</a></li>
+          <li><a href="#overfit">나무 한 그루의 약점</a></li>
+          <li><a href="#rf">랜덤포레스트: 숲의 지혜</a></li>
+          <li><a href="#importance">특성 중요도</a></li>
+          <li><a href="#params">주요 하이퍼파라미터</a></li>
+          <li><a href="#when">언제 쓰면 좋은가</a></li>
+        </ol>
+      </nav>
+
+      <h2 id="tree">나무의 구조</h2>
+      <p>의사결정나무는 다음 요소로 이루어집니다.</p>
+      <ul>
+        <li><strong>루트 노드</strong>: 전체 데이터에 던지는 첫 질문</li>
+        <li><strong>내부 노드</strong>: 데이터를 다시 나누는 중간 질문</li>
+        <li><strong>리프 노드</strong>: 더 나누지 않고 답을 내는 끝 노드. 분류에서는 가장 많은 클래스, 회귀에서는 평균값을 답으로 냅니다.</li>
+      </ul>
+      <p>각 질문은 "특성 하나가 어떤 값보다 큰가/작은가"의 형태입니다. 그래서 의사결정나무는 특성 공간을 축에 평행한 직사각형 조각들로 나누는 모델이라고 볼 수 있습니다.</p>
+
+      <h2 id="gini">좋은 질문의 기준: 지니 불순도</h2>
+      <p>나무는 가능한 모든 질문 중 <strong>나눈 뒤의 그룹이 가장 "순수"해지는 질문</strong>을 고릅니다. 순수하다는 것은 한 그룹 안에 한 클래스만 있다는 뜻입니다. 분류에서는 이를 지니 불순도로 측정합니다.</p>
+      <p class="formula">지니 = 1 − Σ pₖ²　(pₖ: 그룹 안에서 클래스 k의 비율)</p>
+      <p>한 클래스만 있으면 0, 두 클래스가 반반이면 0.5입니다. 예시로 계산해 보겠습니다. 중고차 10대 중 "빨리 팔림(A)"이 6대, "안 팔림(B)"이 4대입니다.</p>
+      <p class="formula">나누기 전: 1 − (0.6² + 0.4²) = 1 − 0.52 = 0.48</p>
+      <p>"가격이 시세 이하인가?"라는 질문으로 나눴더니 다음과 같이 되었습니다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>그룹</th><th>A</th><th>B</th><th>지니</th></tr></thead>
+          <tbody>
+            <tr><td>예 (6대)</td><td>5</td><td>1</td><td>1 − (25/36 + 1/36) ≈ 0.278</td></tr>
+            <tr><td>아니오 (4대)</td><td>1</td><td>3</td><td>1 − (1/16 + 9/16) = 0.375</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>두 그룹의 크기를 가중치로 평균하면 0.6 × 0.278 + 0.4 × 0.375 ≈ <strong>0.317</strong>입니다. 불순도가 0.48에서 0.317로 약 0.163만큼 줄었습니다. 나무는 모든 특성, 모든 기준값에 대해 이 감소량을 계산해 가장 크게 줄이는 질문을 선택하고, 나뉜 각 그룹에서 같은 과정을 반복합니다.</p>
+      <p>회귀 나무에서는 불순도 대신 그룹 안 값들의 분산(MSE)을 줄이는 질문을 고릅니다. 엔트로피를 기준으로 쓸 수도 있지만, 실제 결과는 지니와 크게 다르지 않은 경우가 많습니다.</p>
+
+      <h2 id="overfit">나무 한 그루의 약점</h2>
+      <p>아무 제한 없이 나무를 키우면 리프마다 샘플이 하나씩 남을 때까지 쪼갤 수 있습니다. 그러면 학습 데이터는 100% 맞히지만, 우연한 잡음까지 규칙으로 외워 버려 새 데이터에서는 성능이 크게 떨어집니다. 이것이 <a href="overfitting-cv.html">과적합</a>입니다.</p>
+      <p>또한 나무는 <strong>불안정</strong>합니다. 학습 데이터가 조금만 바뀌어도 첫 질문이 달라지고, 그 아래 구조 전체가 바뀔 수 있습니다. 이렇게 데이터에 따라 결과가 크게 흔들리는 성질을 "분산이 크다"고 표현합니다.</p>
+
+      <h2 id="rf">랜덤포레스트: 숲의 지혜</h2>
+      <p>랜덤포레스트는 서로 조금씩 다른 나무를 수백 그루 만들고, 그 예측을 모아(분류는 다수결, 회귀는 평균) 최종 답을 냅니다. 각 나무가 서로 다른 방향으로 틀린다면, 평균을 낼 때 실수들이 상쇄되어 분산이 크게 줄어듭니다. 핵심은 나무들을 <strong>서로 다르게</strong> 만드는 두 가지 무작위성입니다.</p>
+      <ol>
+        <li><strong>배깅(Bootstrap Aggregating)</strong>: 나무마다 학습 데이터에서 같은 개수만큼 <em>중복을 허용해</em> 무작위로 뽑은 표본으로 학습합니다. 원본 데이터의 약 63%만 각 표본에 포함되고 나머지는 빠지므로, 나무마다 보는 데이터가 다릅니다.</li>
+        <li><strong>특성 무작위 선택</strong>: 노드를 나눌 때마다 전체 특성이 아니라 일부만 후보로 고려합니다. 아주 강력한 특성 하나가 있어도 모든 나무가 똑같이 그 특성으로 시작하지 않게 되어 나무들의 상관이 줄어듭니다.</li>
+      </ol>
+      <p>배깅에서 빠진 약 37%의 데이터(OOB, out-of-bag)는 그 나무 입장에서는 처음 보는 데이터이므로, 별도의 검증 세트 없이도 성능을 추정하는 데 쓸 수 있습니다.</p>
+<pre><code>from sklearn.ensemble import RandomForestClassifier
+
+rf = RandomForestClassifier(n_estimators=300, max_features="sqrt",
+                            oob_score=True, random_state=42, n_jobs=-1)
+rf.fit(X_train, y_train)
+print(rf.oob_score_)              # OOB 정확도
+print(rf.score(X_test, y_test))   # 테스트 정확도</code></pre>
+
+      <h2 id="importance">특성 중요도</h2>
+      <p>랜덤포레스트는 각 특성이 불순도를 얼마나 줄였는지 합산해 특성 중요도를 제공합니다.</p>
+<pre><code>import pandas as pd
+pd.Series(rf.feature_importances_, index=X_train.columns).sort_values(ascending=False)</code></pre>
+      <p>이 기본 중요도는 계산이 빠르지만, 고유값이 많은 특성(ID, 연속형 변수)을 과대평가하는 경향이 있습니다. 더 믿을 만한 방법은 <strong>순열 중요도(permutation importance)</strong>로, 테스트 데이터에서 특성 하나의 값을 무작위로 섞었을 때 성능이 얼마나 떨어지는지를 측정합니다.</p>
+<pre><code>from sklearn.inspection import permutation_importance
+r = permutation_importance(rf, X_test, y_test, n_repeats=10, random_state=42)</code></pre>
+
+      <h2 id="params">주요 하이퍼파라미터</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>파라미터</th><th>의미</th><th>조정 방향</th></tr></thead>
+          <tbody>
+            <tr><td><code>n_estimators</code></td><td>나무 개수</td><td>많을수록 안정적. 성능이 포화될 때까지 늘리되 계산 시간 고려</td></tr>
+            <tr><td><code>max_depth</code></td><td>나무의 최대 깊이</td><td>작을수록 단순 → 과적합 감소</td></tr>
+            <tr><td><code>min_samples_leaf</code></td><td>리프에 남아야 할 최소 샘플 수</td><td>클수록 단순 → 과적합 감소</td></tr>
+            <tr><td><code>max_features</code></td><td>분할마다 고려할 특성 수</td><td>작을수록 나무들이 더 다양해짐</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>단일 의사결정나무는 <code>max_depth</code>와 <code>min_samples_leaf</code>로 성장을 제한하는 것(가지치기)이 특히 중요합니다. 랜덤포레스트는 기본값으로도 괜찮은 성능을 내는 경우가 많아, 처음 시도해 보기 좋은 모델입니다.</p>
+
+      <h2 id="when">언제 쓰면 좋은가</h2>
+      <ul>
+        <li><strong>장점</strong>: 스케일링이 필요 없고, 이상치에 둔감하며, 특성 간 상호작용과 비선형 관계를 자동으로 잡아냅니다. 단일 나무는 규칙을 그대로 그림으로 보여줄 수 있어 설명하기 좋습니다.</li>
+        <li><strong>단점</strong>: 학습 데이터 범위 밖의 값을 예측하지 못합니다(예: 학습 데이터의 최고 가격보다 비싼 값은 절대 예측하지 않음). 랜덤포레스트는 나무 수백 그루의 결과라 단일 나무만큼 해석하기 쉽지는 않습니다.</li>
+      </ul>
+      <p>표 형태 데이터에서는 랜덤포레스트를 먼저 기준선으로 만들어 두고, 이후 그래디언트 부스팅(XGBoost, LightGBM 등)과 비교해 보는 흐름이 일반적입니다.</p>
+
+      <nav class="post-nav" aria-label="이전/다음 글">
+        <a href="classification-metrics.html">← 이전: 분류 평가지표</a>
+        <a href="overfitting-cv.html">다음: 과적합과 교차검증 →</a>
+      </nav>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <span>© 2026 데이터 첫걸음</span>
+      <nav aria-label="하단 메뉴">
+        <a href="../about.html">소개</a><a href="../privacy.html">개인정보처리방침</a><a href="../contact.html">문의</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

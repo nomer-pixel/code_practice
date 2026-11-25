@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nomer-pixel.github.io/code_practice/sitemap.xml

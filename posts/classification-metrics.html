@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>혼동행렬과 정밀도·재현율·F1 점수 - 데이터 첫걸음</title>
+  <meta name="description" content="정확도만 보면 안 되는 이유, 혼동행렬 읽는 법, 정밀도·재현율·F1 점수·ROC AUC의 의미와 계산을 불균형 데이터 예시로 설명합니다.">
+  <link rel="canonical" href="https://nomer-pixel.github.io/code_practice/posts/classification-metrics.html">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2924409115830363"
+     crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <a class="skip" href="#content">본문 바로가기</a>
+  <header class="site-header">
+    <div class="inner">
+      <a class="logo" href="../">데이터<span>첫걸음</span></a>
+      <nav class="site-nav" aria-label="주 메뉴">
+        <ul>
+          <li><a href="../">홈</a></li>
+          <li><a href="../#guides">학습 가이드</a></li>
+          <li><a href="../about.html">소개</a></li>
+          <li><a href="../contact.html">문의</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="content">
+    <article>
+      <div class="breadcrumb"><a href="../">홈</a> › 분류</div>
+      <h1>혼동행렬과 정밀도·재현율·F1 점수</h1>
+      <p class="meta">평가 · 읽는 시간 약 9분</p>
+
+      <p class="lead">분류 모델의 성능을 물으면 가장 먼저 떠오르는 숫자는 정확도입니다. 하지만 정확도 99%짜리 모델이 전혀 쓸모없을 수도 있습니다. 이 글에서는 그 이유와, 대신 봐야 할 지표들을 정리합니다.</p>
+
+      <nav class="toc" aria-label="목차">
+        <strong>목차</strong>
+        <ol>
+          <li><a href="#trap">정확도의 함정</a></li>
+          <li><a href="#cm">혼동행렬 읽기</a></li>
+          <li><a href="#pr">정밀도와 재현율</a></li>
+          <li><a href="#f1">F1 점수</a></li>
+          <li><a href="#tradeoff">임계값과 트레이드오프</a></li>
+          <li><a href="#roc">ROC 곡선과 AUC</a></li>
+          <li><a href="#choose">상황별 지표 선택</a></li>
+        </ol>
+      </nav>
+
+      <h2 id="trap">정확도의 함정</h2>
+      <p>어떤 질병의 유병률이 1%라고 합시다. 1,000명 중 10명만 환자입니다. 아무것도 배우지 않고 <strong>모두 "정상"이라고 답하는 모델</strong>을 만들면 990명을 맞히므로 정확도가 99%입니다. 하지만 이 모델은 환자를 단 한 명도 찾아내지 못합니다.</p>
+      <p>이처럼 클래스 비율이 크게 차이 나는 데이터를 <strong>불균형 데이터</strong>라고 하며, 사기 거래 탐지, 불량품 검출, 고객 이탈 예측 등 실무 문제의 상당수가 여기에 해당합니다. 불균형 데이터에서 정확도는 거의 의미가 없습니다.</p>
+
+      <h2 id="cm">혼동행렬 읽기</h2>
+      <p>예측 결과를 네 칸으로 나눈 표를 혼동행렬(confusion matrix)이라고 합니다. 위 질병 예시에서 실제로 쓸 만한 모델 하나의 결과가 다음과 같다고 합시다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>예측: 양성(환자)</th><th>예측: 음성(정상)</th></tr></thead>
+          <tbody>
+            <tr><th>실제: 양성</th><td><strong>TP = 8</strong><br>진짜 양성 (잘 찾음)</td><td><strong>FN = 2</strong><br>거짓 음성 (놓침)</td></tr>
+            <tr><th>실제: 음성</th><td><strong>FP = 40</strong><br>거짓 양성 (괜한 경보)</td><td><strong>TN = 950</strong><br>진짜 음성 (잘 거름)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>이름이 헷갈린다면 이렇게 읽으세요. 뒷글자(P/N)는 <strong>모델이 뭐라고 예측했는지</strong>, 앞글자(T/F)는 <strong>그 예측이 맞았는지</strong>입니다. FN은 "음성이라고 예측했는데(N) 틀렸다(F)", 즉 환자를 놓친 경우입니다.</p>
+      <p>이 모델의 정확도는 (8 + 950) / 1,000 = 95.8%로, "모두 정상" 모델(99%)보다 낮습니다. 그런데도 환자 10명 중 8명을 찾아냈으니 훨씬 쓸모 있습니다.</p>
+
+      <h2 id="pr">정밀도와 재현율</h2>
+      <h3>정밀도 (Precision)</h3>
+      <p class="formula">정밀도 = TP / (TP + FP) = 8 / 48 ≈ 0.167</p>
+      <p>"양성이라고 예측한 것 중 실제 양성의 비율"입니다. 이 모델이 환자라고 지목한 48명 중 실제 환자는 8명뿐이므로 정밀도는 16.7%입니다. 정밀도가 낮다는 것은 <strong>괜한 경보가 많다</strong>는 뜻입니다.</p>
+      <h3>재현율 (Recall, 민감도)</h3>
+      <p class="formula">재현율 = TP / (TP + FN) = 8 / 10 = 0.8</p>
+      <p>"실제 양성 중 모델이 찾아낸 비율"입니다. 환자 10명 중 8명을 찾았으니 재현율은 80%입니다. 재현율이 낮다는 것은 <strong>놓치는 게 많다</strong>는 뜻입니다. "모두 정상" 모델의 재현율은 0입니다.</p>
+      <div class="tip">
+        <p><strong>외우는 요령</strong> — 정밀도는 모델의 "예측" 열을 기준으로, 재현율은 "실제" 행을 기준으로 계산합니다. 정밀도는 "내가 양성이라고 한 말을 믿을 수 있나?", 재현율은 "양성을 빠짐없이 잡았나?"입니다.</p>
+      </div>
+      <p>참고로 실제 음성 중 음성으로 맞힌 비율인 <strong>특이도</strong>(TN / (TN + FP) = 950 / 990 ≈ 0.96)도 의료 분야에서 자주 함께 보고합니다.</p>
+
+      <h2 id="f1">F1 점수</h2>
+      <p>정밀도와 재현율을 하나의 숫자로 요약하고 싶을 때 둘의 <strong>조화평균</strong>인 F1 점수를 씁니다.</p>
+      <p class="formula">F1 = 2 × 정밀도 × 재현율 / (정밀도 + 재현율) = 2 × 0.167 × 0.8 / 0.967 ≈ 0.276</p>
+      <p>산술평균이 아니라 조화평균을 쓰는 이유는, 둘 중 하나라도 낮으면 F1이 낮게 나오도록 하기 위해서입니다. 정밀도 1.0, 재현율 0.01인 모델의 산술평균은 0.505로 괜찮아 보이지만, F1은 약 0.02로 이 모델이 실제로는 쓸모없다는 것을 정확히 보여 줍니다.</p>
+
+      <h2 id="tradeoff">임계값과 트레이드오프</h2>
+      <p><a href="logistic-regression.html#threshold">로지스틱 회귀</a>처럼 확률을 내놓는 모델은 임계값을 바꿔 정밀도와 재현율의 균형을 조절할 수 있습니다.</p>
+      <ul>
+        <li><strong>임계값을 낮추면</strong>: 더 많은 샘플을 양성으로 판정 → 재현율 ↑, 정밀도 ↓</li>
+        <li><strong>임계값을 높이면</strong>: 확실한 것만 양성으로 판정 → 정밀도 ↑, 재현율 ↓</li>
+      </ul>
+      <p>둘을 동시에 올리는 것은 임계값 조정만으로는 불가능하며, 모델 자체를 개선해야 합니다. 그래서 "어떤 실수가 더 비싼가"를 먼저 정하고 그에 맞춰 임계값을 고르는 것이 중요합니다.</p>
+<pre><code>from sklearn.metrics import precision_recall_curve
+prec, rec, thr = precision_recall_curve(y_test, proba)
+# 재현율 0.9 이상을 유지하는 임계값 중 정밀도가 가장 높은 것 고르기
+ok = rec[:-1] &gt;= 0.9
+best = thr[ok][prec[:-1][ok].argmax()]</code></pre>
+
+      <h2 id="roc">ROC 곡선과 AUC</h2>
+      <p>임계값을 0부터 1까지 바꿔 가며 x축에 거짓 양성률(FP / (FP + TN)), y축에 재현율을 찍으면 ROC 곡선이 됩니다. 곡선 아래 면적인 <strong>AUC</strong>는 0.5(무작위 추측)에서 1.0(완벽) 사이의 값을 가지며, 특정 임계값에 얽매이지 않고 "양성 샘플에 음성 샘플보다 높은 점수를 줄 확률"을 나타냅니다.</p>
+      <p>다만 양성이 극히 드문 데이터에서는 TN이 압도적으로 많아 거짓 양성률이 낮게 나오고, AUC가 실제보다 좋아 보일 수 있습니다. 이때는 정밀도-재현율 곡선 아래 면적(PR AUC, average precision)을 함께 보는 것이 좋습니다.</p>
+
+      <h2 id="choose">상황별 지표 선택</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>상황</th><th>중요한 지표</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td>암 검진, 불량품 검출</td><td>재현율</td><td>놓치는 것(FN)의 비용이 매우 큼</td></tr>
+            <tr><td>스팸 필터, 추천 상품 노출</td><td>정밀도</td><td>잘못 지목하는 것(FP)이 사용자 경험을 해침</td></tr>
+            <tr><td>둘 다 중요, 불균형 데이터</td><td>F1, PR AUC</td><td>두 오류를 균형 있게 반영</td></tr>
+            <tr><td>클래스가 균형 잡혀 있음</td><td>정확도, ROC AUC</td><td>정확도도 의미 있는 지표가 됨</td></tr>
+          </tbody>
+        </table>
+      </div>
+<pre><code>from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score
+
+print(confusion_matrix(y_test, pred))
+print(classification_report(y_test, pred, digits=3))   # 클래스별 정밀도·재현율·F1
+print(roc_auc_score(y_test, proba))</code></pre>
+
+      <nav class="post-nav" aria-label="이전/다음 글">
+        <a href="logistic-regression.html">← 이전: 로지스틱 회귀</a>
+        <a href="decision-tree-rf.html">다음: 의사결정나무와 랜덤포레스트 →</a>
+      </nav>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <span>© 2026 데이터 첫걸음</span>
+      <nav aria-label="하단 메뉴">
+        <a href="../about.html">소개</a><a href="../privacy.html">개인정보처리방침</a><a href="../contact.html">문의</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

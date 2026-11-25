@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://nomer-pixel.github.io/code_practice/</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/about.html</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/contact.html</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/privacy.html</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/posts/what-is-ml.html</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/posts/eda.html</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/posts/preprocessing.html</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/posts/linear-regression.html</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/posts/regression-metrics.html</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/posts/logistic-regression.html</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/posts/classification-metrics.html</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/posts/decision-tree-rf.html</loc><lastmod>2026-11-25</lastmod></url>
+  <url><loc>https://nomer-pixel.github.io/code_practice/posts/overfitting-cv.html</loc><lastmod>2026-11-25</lastmod></url>
+</urlset>

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>회귀 평가지표: MAE, MSE, RMSE, R² 비교 - 데이터 첫걸음</title>
+  <meta name="description" content="회귀 모델 평가지표 MAE, MSE, RMSE, R², MAPE를 직접 계산해 보며 각각의 의미와 장단점, 상황별 선택 기준을 정리합니다.">
+  <link rel="canonical" href="https://nomer-pixel.github.io/code_practice/posts/regression-metrics.html">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2924409115830363"
+     crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <a class="skip" href="#content">본문 바로가기</a>
+  <header class="site-header">
+    <div class="inner">
+      <a class="logo" href="../">데이터<span>첫걸음</span></a>
+      <nav class="site-nav" aria-label="주 메뉴">
+        <ul>
+          <li><a href="../">홈</a></li>
+          <li><a href="../#guides">학습 가이드</a></li>
+          <li><a href="../about.html">소개</a></li>
+          <li><a href="../contact.html">문의</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="content">
+    <article>
+      <div class="breadcrumb"><a href="../">홈</a> › 회귀</div>
+      <h1>회귀 평가지표: MAE, MSE, RMSE, R² 비교</h1>
+      <p class="meta">평가 · 읽는 시간 약 8분</p>
+
+      <p class="lead">"이 모델 성능이 얼마나 돼요?"라는 질문에 답하려면 지표를 골라야 합니다. 그런데 같은 예측 결과도 어떤 지표로 보느냐에 따라 순위가 뒤바뀔 수 있습니다. 작은 예시를 직접 계산하며 각 지표의 성격을 비교해 보겠습니다.</p>
+
+      <nav class="toc" aria-label="목차">
+        <strong>목차</strong>
+        <ol>
+          <li><a href="#example">예시 데이터</a></li>
+          <li><a href="#mae">MAE: 평균 절대 오차</a></li>
+          <li><a href="#mse">MSE와 RMSE: 큰 오차에 더 큰 벌점</a></li>
+          <li><a href="#r2">R²: 평균보다 얼마나 나은가</a></li>
+          <li><a href="#mape">MAPE: 비율로 본 오차</a></li>
+          <li><a href="#choose">어떤 지표를 써야 할까</a></li>
+        </ol>
+      </nav>
+
+      <h2 id="example">예시 데이터</h2>
+      <p>다섯 개 매장의 하루 매출(백만 원)을 두 모델 A, B가 예측했습니다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>매장</th><th>실제</th><th>모델 A 예측</th><th>A 오차</th><th>모델 B 예측</th><th>B 오차</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>10</td><td>11</td><td>−1</td><td>8</td><td>2</td></tr>
+            <tr><td>2</td><td>12</td><td>12</td><td>0</td><td>14</td><td>−2</td></tr>
+            <tr><td>3</td><td>15</td><td>13</td><td>2</td><td>13</td><td>2</td></tr>
+            <tr><td>4</td><td>20</td><td>21</td><td>−1</td><td>22</td><td>−2</td></tr>
+            <tr><td>5</td><td>18</td><td>23</td><td>−5</td><td>16</td><td>2</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>모델 A는 대부분 잘 맞히다가 매장 5에서 크게 틀렸고, 모델 B는 모든 매장에서 고르게 2씩 틀렸습니다. 어느 쪽이 더 좋은 모델일까요?</p>
+
+      <h2 id="mae">MAE: 평균 절대 오차</h2>
+      <p class="formula">MAE = (1/n) Σ |yᵢ − ŷᵢ|</p>
+      <ul>
+        <li>모델 A: (1 + 0 + 2 + 1 + 5) / 5 = <strong>1.8</strong></li>
+        <li>모델 B: (2 + 2 + 2 + 2 + 2) / 5 = <strong>2.0</strong></li>
+      </ul>
+      <p>MAE로는 <strong>A가 더 좋습니다</strong>. MAE는 "평균적으로 몇만큼 틀리는가"를 타깃과 같은 단위로 알려 주기 때문에 해석이 가장 쉽습니다. "평균 180만 원 정도 빗나간다"고 바로 말할 수 있습니다. 모든 오차를 똑같은 무게로 취급하므로 이상치의 영향을 덜 받습니다.</p>
+
+      <h2 id="mse">MSE와 RMSE: 큰 오차에 더 큰 벌점</h2>
+      <p class="formula">MSE = (1/n) Σ (yᵢ − ŷᵢ)²　　RMSE = √MSE</p>
+      <ul>
+        <li>모델 A: MSE = (1 + 0 + 4 + 1 + 25) / 5 = 6.2, RMSE = √6.2 ≈ <strong>2.49</strong></li>
+        <li>모델 B: MSE = (4 + 4 + 4 + 4 + 4) / 5 = 4.0, RMSE = √4 = <strong>2.00</strong></li>
+      </ul>
+      <p>이번에는 <strong>B가 더 좋습니다</strong>. 오차를 제곱하면 5는 25가 되어, 오차 2(→4)보다 6배 넘는 벌점을 받습니다. 그래서 MSE와 RMSE는 "가끔 크게 틀리는 것"을 강하게 싫어합니다.</p>
+      <p>MSE는 단위가 제곱(백만 원²)이라 직관적이지 않으므로, 보고할 때는 제곱근을 씌워 원래 단위로 돌린 RMSE를 주로 씁니다. 반면 MSE는 미분하기 쉬워서 모델이 학습할 때 최소화하는 <strong>손실 함수</strong>로 많이 쓰입니다. <a href="linear-regression.html#ols">선형회귀의 최소제곱법</a>이 바로 MSE를 최소화하는 방법입니다.</p>
+      <div class="tip">
+        <p><strong>RMSE ≥ MAE는 항상 성립합니다.</strong> 두 값의 차이가 크다면 오차가 고르지 않고 일부 샘플에서 크게 틀리고 있다는 신호입니다. 모델 A는 2.49 대 1.8로 차이가 크고, 모델 B는 2.0 대 2.0으로 같습니다.</p>
+      </div>
+
+      <h2 id="r2">R²: 평균보다 얼마나 나은가</h2>
+      <p>MAE나 RMSE는 단위가 있어서 "2.0이 좋은 건가?"를 판단하려면 타깃의 크기를 알아야 합니다. R²(결정계수)는 이 문제를 해결합니다.</p>
+      <p class="formula">R² = 1 − Σ(yᵢ − ŷᵢ)² / Σ(yᵢ − ȳ)²</p>
+      <p>분모는 "아무 모델 없이 평균값 하나로 모두 예측했을 때"의 오차 제곱합입니다. 예시에서 실제 매출의 평균은 15이므로 분모는 25 + 9 + 0 + 25 + 9 = 68입니다.</p>
+      <ul>
+        <li>모델 A: 1 − 31 / 68 ≈ <strong>0.544</strong></li>
+        <li>모델 B: 1 − 20 / 68 ≈ <strong>0.706</strong></li>
+      </ul>
+      <p>R²는 1에 가까울수록 좋고, 0이면 평균으로 찍는 것과 같으며, <strong>음수가 될 수도 있습니다</strong>(평균보다도 못한 모델). "타깃의 변동 중 몇 %를 모델이 설명하는가"로 흔히 읽습니다.</p>
+      <p>주의할 점도 있습니다. 학습 데이터 기준으로는 특성을 추가할수록 R²가 떨어지지 않으므로, 쓸모없는 특성을 넣어도 좋아 보일 수 있습니다. 반드시 <a href="overfitting-cv.html">테스트 데이터나 교차검증</a>으로 평가해야 합니다.</p>
+
+      <h2 id="mape">MAPE: 비율로 본 오차</h2>
+      <p class="formula">MAPE = (100/n) Σ |yᵢ − ŷᵢ| / |yᵢ|</p>
+      <p>오차를 실제 값 대비 비율(%)로 나타냅니다. "평균 8% 정도 빗나간다"처럼 비전문가에게 설명하기 좋고, 규모가 다른 품목끼리 비교할 때 유용합니다. 단, 실제 값이 0이거나 0에 가까우면 값이 폭발하므로 판매량이 0인 날이 있는 데이터에는 쓰기 어렵습니다.</p>
+
+      <h2 id="choose">어떤 지표를 써야 할까</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>상황</th><th>추천 지표</th></tr></thead>
+          <tbody>
+            <tr><td>결과를 비전문가에게 쉽게 설명해야 한다</td><td>MAE, MAPE</td></tr>
+            <tr><td>가끔 크게 틀리는 것이 치명적이다 (재고 부족, 안전 관련)</td><td>RMSE</td></tr>
+            <tr><td>이상치가 많고 그 영향을 줄이고 싶다</td><td>MAE</td></tr>
+            <tr><td>서로 다른 데이터셋의 모델을 비교한다</td><td>R², MAPE</td></tr>
+            <tr><td>대회나 과제에서 지표가 정해져 있다</td><td>정해진 지표를 기준으로 학습·검증</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>실무에서는 지표 하나만 보지 않고 RMSE와 MAE를 함께 보며 오차의 분포를 파악하고, R²로 전반적인 설명력을 확인하는 경우가 많습니다.</p>
+<pre><code>from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import numpy as np
+
+y_true = [10, 12, 15, 20, 18]
+pred_a = [11, 12, 13, 21, 23]
+
+print(mean_absolute_error(y_true, pred_a))           # 1.8
+print(np.sqrt(mean_squared_error(y_true, pred_a)))   # 2.49
+print(r2_score(y_true, pred_a))                      # 0.544</code></pre>
+
+      <nav class="post-nav" aria-label="이전/다음 글">
+        <a href="linear-regression.html">← 이전: 선형회귀</a>
+        <a href="logistic-regression.html">다음: 로지스틱 회귀 →</a>
+      </nav>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <span>© 2026 데이터 첫걸음</span>
+      <nav aria-label="하단 메뉴">
+        <a href="../about.html">소개</a><a href="../privacy.html">개인정보처리방침</a><a href="../contact.html">문의</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

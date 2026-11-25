@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>과적합과 교차검증: 시험 문제만 외운 모델 피하기 - 데이터 첫걸음</title>
+  <meta name="description" content="과적합과 과소적합의 차이, 학습·검증·테스트 데이터를 나누는 이유, K-폴드 교차검증과 하이퍼파라미터 튜닝 방법을 예시 코드와 함께 설명합니다.">
+  <link rel="canonical" href="https://nomer-pixel.github.io/code_practice/posts/overfitting-cv.html">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2924409115830363"
+     crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <a class="skip" href="#content">본문 바로가기</a>
+  <header class="site-header">
+    <div class="inner">
+      <a class="logo" href="../">데이터<span>첫걸음</span></a>
+      <nav class="site-nav" aria-label="주 메뉴">
+        <ul>
+          <li><a href="../">홈</a></li>
+          <li><a href="../#guides">학습 가이드</a></li>
+          <li><a href="../about.html">소개</a></li>
+          <li><a href="../contact.html">문의</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="content">
+    <article>
+      <div class="breadcrumb"><a href="../">홈</a> › 모델 다듬기</div>
+      <h1>과적합과 교차검증: 시험 문제만 외운 모델 피하기</h1>
+      <p class="meta">일반화 · 읽는 시간 약 9분</p>
+
+      <p class="lead">기출문제만 통째로 외운 학생은 기출문제 시험에서는 만점을 받지만, 처음 보는 문제 앞에서는 무너집니다. 머신러닝 모델도 똑같습니다. 우리가 원하는 것은 학습 데이터를 외우는 모델이 아니라, <strong>처음 보는 데이터에서도 잘 맞히는</strong> 모델입니다. 이 능력을 일반화(generalization)라고 합니다.</p>
+
+      <nav class="toc" aria-label="목차">
+        <strong>목차</strong>
+        <ol>
+          <li><a href="#concept">과적합과 과소적합</a></li>
+          <li><a href="#diagnose">어떻게 알아차리는가</a></li>
+          <li><a href="#split">데이터를 세 덩어리로 나누는 이유</a></li>
+          <li><a href="#kfold">K-폴드 교차검증</a></li>
+          <li><a href="#tuning">교차검증으로 하이퍼파라미터 고르기</a></li>
+          <li><a href="#fix">과적합을 줄이는 방법</a></li>
+        </ol>
+      </nav>
+
+      <h2 id="concept">과적합과 과소적합</h2>
+      <ul>
+        <li><strong>과소적합(underfitting)</strong>: 모델이 너무 단순해서 데이터의 패턴조차 잡지 못하는 상태. 학습 데이터에서도, 새 데이터에서도 성능이 낮습니다. 곡선 관계를 직선 하나로 설명하려는 경우가 대표적입니다.</li>
+        <li><strong>과적합(overfitting)</strong>: 모델이 너무 복잡해서 패턴뿐 아니라 우연한 잡음까지 외운 상태. 학습 데이터에서는 성능이 매우 높지만, 새 데이터에서는 크게 떨어집니다.</li>
+      </ul>
+      <p>모델의 복잡도를 높여 가면, 처음에는 학습 성능과 검증 성능이 함께 좋아지다가 어느 순간부터 학습 성능만 계속 오르고 검증 성능은 오히려 나빠집니다. 우리가 찾는 것은 <strong>검증 성능이 가장 좋은 지점</strong>입니다.</p>
+      <div class="note">
+        <p><strong>편향-분산 관점</strong> — 과소적합은 모델이 체계적으로 한쪽으로 틀리는 "편향이 큰" 상태, 과적합은 학습 데이터가 조금만 바뀌어도 예측이 크게 흔들리는 "분산이 큰" 상태입니다. 복잡도를 높이면 편향은 줄고 분산은 늘어나므로, 둘 사이의 균형점을 찾는 것이 핵심입니다.</p>
+      </div>
+
+      <h2 id="diagnose">어떻게 알아차리는가</h2>
+      <p>가장 간단한 방법은 학습 점수와 검증 점수를 나란히 보는 것입니다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>학습 점수</th><th>검증 점수</th><th>진단</th><th>대응</th></tr></thead>
+          <tbody>
+            <tr><td>낮음</td><td>낮음</td><td>과소적합</td><td>더 복잡한 모델, 특성 추가, 규제 완화</td></tr>
+            <tr><td>높음</td><td>낮음 (격차 큼)</td><td>과적합</td><td>모델 단순화, 규제 강화, 데이터 추가</td></tr>
+            <tr><td>높음</td><td>높음 (격차 작음)</td><td>적절</td><td>테스트 데이터로 최종 확인</td></tr>
+          </tbody>
+        </table>
+      </div>
+<pre><code>from sklearn.tree import DecisionTreeClassifier
+
+for depth in [1, 3, 5, 10, None]:
+    m = DecisionTreeClassifier(max_depth=depth, random_state=42).fit(X_train, y_train)
+    print(depth, round(m.score(X_train, y_train), 3), round(m.score(X_val, y_val), 3))</code></pre>
+      <p>깊이 제한이 없는(<code>None</code>) 나무는 보통 학습 정확도 1.0을 찍지만 검증 정확도는 중간 깊이보다 낮게 나옵니다. 과적합을 눈으로 확인할 수 있는 좋은 실험입니다.</p>
+
+      <h2 id="split">데이터를 세 덩어리로 나누는 이유</h2>
+      <p>모델을 만들 때는 데이터를 보통 세 부분으로 나눕니다.</p>
+      <ol>
+        <li><strong>학습(train) 데이터</strong>: 모델의 가중치를 정하는 데 사용합니다.</li>
+        <li><strong>검증(validation) 데이터</strong>: 모델 종류나 하이퍼파라미터를 고르는 데 사용합니다.</li>
+        <li><strong>테스트(test) 데이터</strong>: 모든 결정이 끝난 뒤 <strong>단 한 번</strong> 최종 성능을 확인하는 데 사용합니다.</li>
+      </ol>
+      <p>왜 검증과 테스트를 따로 둘까요? 검증 점수를 보면서 설정을 계속 바꾸면, 모델이 간접적으로 검증 데이터에 맞춰지게 됩니다. 그 점수는 더 이상 "처음 보는 데이터"의 성능이 아닙니다. 테스트 데이터를 끝까지 손대지 않고 남겨 두어야 실제 성능을 정직하게 추정할 수 있습니다.</p>
+<pre><code>from sklearn.model_selection import train_test_split
+
+X_tmp, X_test, y_tmp, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+X_train, X_val, y_train, y_val = train_test_split(X_tmp, y_tmp, test_size=0.25, random_state=42, stratify=y_tmp)
+# 결과적으로 학습 60% / 검증 20% / 테스트 20%</code></pre>
+      <p><code>stratify=y</code>는 분류 문제에서 각 덩어리의 클래스 비율을 원본과 같게 유지해 줍니다. <a href="classification-metrics.html#trap">불균형 데이터</a>라면 꼭 넣어야 합니다.</p>
+
+      <h2 id="kfold">K-폴드 교차검증</h2>
+      <p>데이터가 적으면 검증 세트가 작아지고, 어떤 샘플이 검증 세트에 들어갔느냐에 따라 점수가 크게 흔들립니다. K-폴드 교차검증은 이 문제를 해결합니다.</p>
+      <ol>
+        <li>학습용 데이터를 K개(보통 5개)의 같은 크기 조각(폴드)으로 나눕니다.</li>
+        <li>첫 번째 폴드를 검증용으로, 나머지 K−1개를 학습용으로 써서 점수를 얻습니다.</li>
+        <li>검증 폴드를 바꿔 가며 K번 반복합니다.</li>
+        <li>K개 점수의 평균(과 표준편차)을 최종 검증 성능으로 봅니다.</li>
+      </ol>
+      <p>모든 샘플이 한 번씩 검증에 쓰이므로 데이터를 낭비하지 않고, 점수의 표준편차로 성능이 얼마나 안정적인지도 알 수 있습니다. 대신 모델을 K번 학습해야 하므로 시간이 K배 걸립니다.</p>
+<pre><code>from sklearn.model_selection import cross_val_score, StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+scores = cross_val_score(RandomForestClassifier(random_state=42), X_tmp, y_tmp, cv=cv, scoring="f1")
+print(scores.mean().round(3), "±", scores.std().round(3))</code></pre>
+      <div class="tip">
+        <p><strong>시계열 데이터는 예외</strong> — 날짜 순서가 있는 데이터를 무작위로 섞어 나누면, 미래 데이터로 학습해 과거를 맞히는 이상한 상황이 생깁니다. 이때는 항상 과거로 학습하고 미래로 검증하는 <code>TimeSeriesSplit</code>을 사용하세요.</p>
+      </div>
+      <p>전처리가 있다면 <a href="preprocessing.html#pipeline">파이프라인</a>으로 묶어 교차검증에 넣어야 합니다. 그래야 폴드마다 전처리가 학습 폴드에서만 계산되어 데이터 누수가 생기지 않습니다.</p>
+
+      <h2 id="tuning">교차검증으로 하이퍼파라미터 고르기</h2>
+      <p>하이퍼파라미터는 학습으로 정해지지 않고 사람이 미리 정하는 설정값입니다(나무의 깊이, 규제 세기 등). 후보 조합마다 교차검증 점수를 계산해 가장 좋은 것을 고르는 것이 그리드 서치입니다.</p>
+<pre><code>from sklearn.model_selection import GridSearchCV
+
+grid = GridSearchCV(
+    RandomForestClassifier(random_state=42),
+    param_grid={"max_depth": [4, 8, None], "min_samples_leaf": [1, 5, 20]},
+    cv=cv, scoring="f1", n_jobs=-1,
+)
+grid.fit(X_tmp, y_tmp)
+print(grid.best_params_, grid.best_score_)
+print(grid.score(X_test, y_test))   # 마지막에 단 한 번, 테스트 성능 확인</code></pre>
+      <p>후보가 너무 많으면 모든 조합을 시도하는 대신 무작위로 일부만 시도하는 <code>RandomizedSearchCV</code>가 효율적입니다.</p>
+
+      <h2 id="fix">과적합을 줄이는 방법</h2>
+      <ul>
+        <li><strong>데이터를 더 모으기</strong>: 가장 확실한 방법입니다. 데이터가 많을수록 잡음을 외우기 어려워집니다.</li>
+        <li><strong>모델 단순화</strong>: 나무 깊이 제한, 특성 수 줄이기, 덜 복잡한 알고리즘 선택.</li>
+        <li><strong>규제</strong>: <a href="linear-regression.html#reg">Ridge·Lasso</a>, 로지스틱 회귀의 <code>C</code> 줄이기.</li>
+        <li><strong>앙상블</strong>: <a href="decision-tree-rf.html#rf">랜덤포레스트</a>처럼 여러 모델의 예측을 평균내어 분산을 줄이기.</li>
+        <li><strong>조기 종료</strong>: 반복 학습하는 모델(부스팅, 신경망)에서 검증 성능이 더 이상 좋아지지 않으면 학습을 멈추기.</li>
+        <li><strong>누수 점검</strong>: 검증 점수가 비현실적으로 높다면 과적합이 아니라 <a href="preprocessing.html#leak">데이터 누수</a>일 수 있습니다.</li>
+      </ul>
+      <p>여기까지 읽었다면 데이터 탐색부터 전처리, 모델 학습, 평가, 튜닝까지 머신러닝의 전체 흐름을 한 바퀴 돈 셈입니다. 처음 글로 돌아가 전체 그림을 다시 보면 각 단계가 왜 필요한지 더 분명하게 보일 것입니다.</p>
+
+      <nav class="post-nav" aria-label="이전/다음 글">
+        <a href="decision-tree-rf.html">← 이전: 의사결정나무와 랜덤포레스트</a>
+        <a href="what-is-ml.html">처음으로: 머신러닝이란 →</a>
+      </nav>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <span>© 2026 데이터 첫걸음</span>
+      <nav aria-label="하단 메뉴">
+        <a href="../about.html">소개</a><a href="../privacy.html">개인정보처리방침</a><a href="../contact.html">문의</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
