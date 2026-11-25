@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>숫자 추첨기</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 40px 16px;
+            font-family: Arial, sans-serif;
+            color: #202b45;
+            background: linear-gradient(135deg, #e0eaff, #f5f7ff);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 36px 28px;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .circle {
+            display: block;
+            margin: 0 auto 16px;
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            color: #2457c5;
+        }
+
+        .description {
+            margin: 0 0 28px;
+            color: #667085;
+        }
+
+        .settings {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            color: #475467;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            margin-top: 7px;
+            padding: 11px 12px;
+            border: 1px solid #d0d5dd;
+            border-radius: 8px;
+            font: inherit;
+        }
+
+        .unique-option {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            color: #475467;
+            font-size: 14px;
+        }
+
+        .unique-option input {
+            width: 16px;
+            height: 16px;
+            accent-color: #2457c5;
+        }
+
+        .results {
+            display: flex;
+            min-height: 130px;
+            align-content: center;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 22px 14px;
+            border-radius: 14px;
+            background: #f7f9fc;
+        }
+
+        .placeholder {
+            color: #98a2b3;
+        }
+
+        .ball {
+            display: flex;
+            width: 58px;
+            height: 58px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: white;
+            background: #2457c5;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: 0 3px 8px rgba(36, 87, 197, 0.2);
+            animation: pop-in 220ms ease-out both;
+        }
+
+        @keyframes pop-in {
+            from {
+                opacity: 0;
+                transform: scale(0.7);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 13px 24px;
+            border: 0;
+            border-radius: 9px;
+            color: white;
+            background: #2457c5;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #173b8c;
+        }
+
+        button:focus-visible,
+        input:focus-visible {
+            outline: 3px solid #84adff;
+            outline-offset: 2px;
+        }
+
+        .reset {
+            background: #667085;
+        }
+
+        .reset:hover {
+            background: #475467;
+        }
+
+        .message {
+            min-height: 20px;
+            margin: 14px 0 0;
+            color: #d92d20;
+            font-size: 14px;
+        }
+
+        .count {
+            margin: 4px 0 0;
+            color: #98a2b3;
+            font-size: 14px;
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 24px 12px;
+            }
+
+            .container {
+                padding: 28px 18px;
+            }
+
+            .settings {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .ball {
+                width: 48px;
+                height: 48px;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <svg class="circle" width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="50" fill="#e0eaff" stroke="#2457c5" stroke-width="6" />
+        </svg>
+        <h1>🎲 숫자 추첨기</h1>
+        <p class="description">원하는 범위와 개수를 정하고 행운의 숫자를 뽑아보세요!</p>
+
+        <form id="draw-form">
+            <div class="settings">
+                <label for="min-number">
+                    시작 숫자
+                    <input id="min-number" type="number" value="1" step="1" required>
+                </label>
+                <label for="max-number">
+                    마지막 숫자
+                    <input id="max-number" type="number" value="45" step="1" required>
+                </label>
+                <label for="draw-count">
+                    추첨 개수
+                    <input id="draw-count" type="number" value="6" min="1" step="1" required>
+                </label>
+            </div>
+
+            <label class="unique-option" for="unique-numbers">
+                <input id="unique-numbers" type="checkbox" checked>
+                중복 없이 추첨
+            </label>
+
+            <div class="results" id="results" aria-live="polite">
+                <span class="placeholder">추첨 버튼을 눌러주세요</span>
+            </div>
+
+            <div class="actions">
+                <button type="submit">숫자 추첨하기</button>
+                <button class="reset" id="reset-button" type="button">초기화</button>
+            </div>
+        </form>
+
+        <p class="message" id="message" role="alert"></p>
+        <p class="count" id="count">아직 추첨하지 않았습니다.</p>
+    </main>
+
+    <script>
+        let drawCount = 0;
+
+        const form = document.getElementById("draw-form");
+        const results = document.getElementById("results");
+        const message = document.getElementById("message");
+        const countLabel = document.getElementById("count");
+
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const min = Number(document.getElementById("min-number").value);
+            const max = Number(document.getElementById("max-number").value);
+            const quantity = Number(document.getElementById("draw-count").value);
+            const unique = document.getElementById("unique-numbers").checked;
+
+            if (!Number.isSafeInteger(min) || !Number.isSafeInteger(max) ||
+                !Number.isSafeInteger(quantity) || min > max || quantity < 1) {
+                showError("시작 숫자와 마지막 숫자, 추첨 개수를 올바른 정수로 입력해주세요.");
+                return;
+            }
+
+            const rangeSize = max - min + 1;
+            if (!Number.isSafeInteger(rangeSize) || rangeSize < 1) {
+                showError("숫자 범위가 너무 큽니다.");
+                return;
+            }
+
+            if (unique && quantity > rangeSize) {
+                showError("중복 없이 추첨하려면 추첨 개수가 숫자 범위보다 클 수 없습니다.");
+                return;
+            }
+
+            const drawn = [];
+            if (unique) {
+                const swaps = new Map();
+
+                for (let i = 0; i < quantity; i++) {
+                    const randomIndex = i + Math.floor(Math.random() * (rangeSize - i));
+                    const selected = swaps.has(randomIndex) ? swaps.get(randomIndex) : randomIndex;
+                    const replacement = swaps.has(i) ? swaps.get(i) : i;
+                    swaps.set(randomIndex, replacement);
+                    drawn.push(min + selected);
+                }
+                drawn.sort(function (a, b) { return a - b; });
+            } else {
+                for (let i = 0; i < quantity; i++) {
+                    drawn.push(Math.floor(Math.random() * rangeSize) + min);
+                }
+            }
+
+            results.replaceChildren();
+            drawn.forEach(function (number, index) {
+                const ball = document.createElement("span");
+                ball.className = "ball";
+                ball.style.animationDelay = (index * 45) + "ms";
+                ball.textContent = number;
+                results.appendChild(ball);
+            });
+
+            message.textContent = "";
+            drawCount++;
+            countLabel.textContent = "총 " + drawCount + "회 추첨했습니다.";
+        });
+
+        document.getElementById("reset-button").addEventListener("click", function () {
+            form.reset();
+            results.innerHTML = '<span class="placeholder">추첨 버튼을 눌러주세요</span>';
+            message.textContent = "";
+            drawCount = 0;
+            countLabel.textContent = "아직 추첨하지 않았습니다.";
+        });
+
+        function showError(text) {
+            message.textContent = text;
+        }
+    </script>
+</body>
+</html>
+
